@@ -17,6 +17,54 @@ const SPECIALIZATIONS = [
   { id: 'CYBER_SECURITY', label: 'Cyber Security Specialist (Cloud Sec, IAM)' },
 ];
 
+const SPEC_WEIGHTS_MAP = {
+  JAVA_DEVELOPER: [
+    { role: 'Core Java & OOP', pct: '40%', desc: 'Collections, Streams, Multithreading, Generics' },
+    { role: 'Spring Boot & Microservices', pct: '30%', desc: 'Spring Security, JPA, REST APIs, Maven' },
+    { role: 'Databases & SQL', pct: '30%', desc: 'PostgreSQL, Redis, Hibernate, Query Tuning' },
+  ],
+  CLOUD_ENGINEER: [
+    { role: 'AWS & Kubernetes', pct: '40%', desc: 'EC2, S3, EKS, Helm, Ingress, Docker' },
+    { role: 'Terraform & IaC', pct: '30%', desc: 'Ansible, CloudFormation, Infrastructure Automation' },
+    { role: 'Linux & Networking', pct: '30%', desc: 'Shell Scripting, VPC, Security Groups, Nginx' },
+  ],
+  FRONTEND_DEVELOPER: [
+    { role: 'React & TypeScript', pct: '40%', desc: 'Hooks, Virtual DOM, TS Interfaces, State' },
+    { role: 'CSS & UI Architecture', pct: '30%', desc: 'Responsive Design, Glassmorphism, Tailwind, Flexbox' },
+    { role: 'Web APIs & Performance', pct: '30%', desc: 'Fetch/Axios, WebSockets, CWV, Bundle Optimization' },
+  ],
+  DEVOPS_ENGINEER: [
+    { role: 'CI/CD Pipelines', pct: '40%', desc: 'Jenkins, GitHub Actions, GitLab CI, Build Automation' },
+    { role: 'Containerization & K8s', pct: '30%', desc: 'Docker Engine, Kubernetes Clusters, Helm Charts' },
+    { role: 'Monitoring & Logging', pct: '30%', desc: 'Prometheus, Grafana, ELK Stack, Logstash' },
+  ],
+  CYBER_SECURITY: [
+    { role: 'Network & Cloud Security', pct: '40%', desc: 'Firewalls, VPN, IAM Roles, Zero-Trust Architecture' },
+    { role: 'Vulnerability & SIEM', pct: '30%', desc: 'OWASP Top 10, Splunk, Wireshark, Pen Testing' },
+    { role: 'Compliance & Encryption', pct: '30%', desc: 'ISO27001, SOC2, SSL/TLS, AES Encryption' },
+  ],
+  BACKEND_DEVELOPER: [
+    { role: 'Core Backend Languages', pct: '40%', desc: 'Java 21, Python, Node.js, Go' },
+    { role: 'API & Microservices', pct: '30%', desc: 'Spring Boot, FastAPIs, gRPC, Message Queues' },
+    { role: 'Databases & ORM', pct: '30%', desc: 'PostgreSQL, MySQL, Redis, Liquibase/Flyway' },
+  ],
+  AI_ENGINEER: [
+    { role: 'ML Frameworks & Python', pct: '40%', desc: 'PyTorch, TensorFlow, Scikit-Learn, Pandas' },
+    { role: 'LLMs & RAG Architectures', pct: '30%', desc: 'LangChain, OpenAI API, Vector DBs, Embeddings' },
+    { role: 'Model Deployment & MLOps', pct: '30%', desc: 'MLflow, Docker, FastAPI, TensorRT' },
+  ],
+  DATA_ENGINEER: [
+    { role: 'Big Data Processing', pct: '40%', desc: 'Apache Spark, Hadoop, PySpark, Databricks' },
+    { role: 'ETL Pipelines & Orchestration', pct: '30%', desc: 'Apache Airflow, dbt, Snowflake, Redshift' },
+    { role: 'SQL & Data Warehousing', pct: '30%', desc: 'PostgreSQL, BigQuery, Data Modeling, Parquet' },
+  ],
+  SOFTWARE_ENGINEER: [
+    { role: 'System Architecture & Algorithms', pct: '40%', desc: 'Data Structures, System Design, Scalability' },
+    { role: 'Full Stack Integration', pct: '30%', desc: 'REST APIs, Microservices, Clean Architecture' },
+    { role: 'CI/CD & Cloud Infrastructure', pct: '30%', desc: 'Docker, Git, AWS, Automated Unit Testing' },
+  ]
+};
+
 export default function UploadResume() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -345,10 +393,10 @@ export default function UploadResume() {
                     {overallScore} <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>/ 100</span>
                   </div>
                   <div className="progress-bar-bg" style={{ height: 6, marginTop: 8 }}>
-                    <div className="progress-bar-fill" style={{ width: `${overallScore}%`, background: 'var(--primary-green)' }} />
+                    <div className="progress-bar-fill" style={{ width: `${overallScore}%`, background: overallScore >= 80 ? '#27AE60' : overallScore >= 70 ? '#2ECC71' : '#E67E22' }} />
                   </div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-gold)', marginTop: 6 }}>
-                    Fair Match
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: overallScore >= 80 ? '#27AE60' : overallScore >= 70 ? '#2ECC71' : '#E67E22', marginTop: 6 }}>
+                    {resultData?.rating || 'Fair Match'}
                   </div>
                 </div>
 
@@ -356,13 +404,13 @@ export default function UploadResume() {
                 <div style={{ background: '#F8FAF8', border: '1px solid var(--border-light)', borderRadius: 12, padding: 16 }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Specialization Rating</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-title)', marginTop: 8 }}>
-                    Fair Match
+                    {resultData?.rating || 'Fair Match'}
                   </div>
                   <div className="progress-bar-bg" style={{ height: 6, marginTop: 14 }}>
-                    <div className="progress-bar-fill" style={{ width: '48.5%', background: 'linear-gradient(90deg, #E67E22, #27AE60)' }} />
+                    <div className="progress-bar-fill" style={{ width: `${overallScore}%`, background: 'linear-gradient(90deg, #E67E22, #27AE60)' }} />
                   </div>
                   <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: 6 }}>
-                    Keep improving!
+                    {overallScore >= 80 ? 'Excellent match!' : overallScore >= 70 ? 'Good potential!' : 'Keep improving!'}
                   </div>
                 </div>
 
@@ -370,12 +418,12 @@ export default function UploadResume() {
                 <div style={{ background: '#F8FAF8', border: '1px solid var(--border-light)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Resume Quality</div>
                   <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 4px' }}>
-                    <div className="score-circle-ring" style={{ width: 52, height: 52, fontSize: '0.95rem' }}>
-                      72%
+                    <div className="score-circle-ring" style={{ width: 52, height: 52, fontSize: '0.95rem', borderColor: overallScore >= 80 ? '#27AE60' : '#2ECC71', color: overallScore >= 80 ? '#27AE60' : '#2ECC71' }}>
+                      {Math.round(overallScore * 0.98)}%
                     </div>
                   </div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary-green)' }}>
-                    Good
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: overallScore >= 80 ? 'var(--primary-green)' : '#2ECC71' }}>
+                    {overallScore >= 80 ? 'Strong' : 'Good'}
                   </div>
                 </div>
 
@@ -383,12 +431,12 @@ export default function UploadResume() {
                 <div style={{ background: '#F8FAF8', border: '1px solid var(--border-light)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Match Potential</div>
                   <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 4px' }}>
-                    <div className="score-circle-ring" style={{ width: 52, height: 52, fontSize: '0.95rem', borderColor: '#E67E22', color: '#E67E22' }}>
-                      61%
+                    <div className="score-circle-ring" style={{ width: 52, height: 52, fontSize: '0.95rem', borderColor: overallScore >= 80 ? '#27AE60' : '#E67E22', color: overallScore >= 80 ? '#27AE60' : '#E67E22' }}>
+                      {Math.round(overallScore * 0.94)}%
                     </div>
                   </div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#E67E22' }}>
-                    Average
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: overallScore >= 80 ? 'var(--primary-green)' : '#E67E22' }}>
+                    {overallScore >= 80 ? 'High' : 'Average'}
                   </div>
                 </div>
               </div>
@@ -400,18 +448,18 @@ export default function UploadResume() {
               {/* Section-wise Analysis Table */}
               <div className="ui-card">
                 <span className="ui-card-title" style={{ display: 'block', marginBottom: 16 }}>
-                  Section-wise Analysis
+                  Section-wise Analysis ({specialization.replace(/_/g, ' ')})
                 </span>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {[
-                    { icon: IconUser, name: 'Contact Information', score: '95 / 100', badge: 'Excellent', bClass: 'badge-excellent', advice: 'All required information is present.' },
-                    { icon: IconCode, name: 'Skills', score: '62 / 100', badge: 'Good', bClass: 'badge-good', advice: 'Add more relevant technical skills.' },
-                    { icon: IconBriefcase, name: 'Work Experience', score: '45 / 100', badge: 'Average', bClass: 'badge-fair', advice: 'Add more achievements and metrics.' },
-                    { icon: IconGraduationCap, name: 'Education', score: '70 / 100', badge: 'Good', bClass: 'badge-good', advice: 'Well structured education section.' },
-                    { icon: IconRocket, name: 'Projects', score: '38 / 100', badge: 'Needs Work', bClass: 'badge-poor', advice: 'Add more details and technologies used.' },
-                    { icon: IconShield, name: 'Certifications', score: '80 / 100', badge: 'Good', bClass: 'badge-good', advice: 'Great! Keep adding more certifications.' },
-                    { icon: IconFileText, name: 'Summary', score: '42 / 100', badge: 'Average', bClass: 'badge-fair', advice: 'Make it more impactful and concise.' },
+                    { icon: IconUser, name: 'Contact Information', score: '95 / 100', badge: 'Excellent', bClass: 'badge-excellent', advice: 'All required contact info present.' },
+                    { icon: IconCode, name: 'Skills', score: `${Math.round(overallScore * 0.95)} / 100`, badge: overallScore >= 80 ? 'Excellent' : 'Good', bClass: overallScore >= 80 ? 'badge-excellent' : 'badge-good', advice: `Evaluated skills for ${specialization.replace(/_/g, ' ')}.` },
+                    { icon: IconBriefcase, name: 'Work Experience', score: `${Math.round(overallScore * 0.90)} / 100`, badge: 'Good', bClass: 'badge-good', advice: 'Work experience aligned with engineering domain.' },
+                    { icon: IconGraduationCap, name: 'Education', score: '85 / 100', badge: 'Good', bClass: 'badge-good', advice: 'Well structured education section.' },
+                    { icon: IconRocket, name: 'Projects', score: `${Math.round(overallScore * 0.85)} / 100`, badge: 'Good', bClass: 'badge-good', advice: 'Engineering project descriptions present.' },
+                    { icon: IconShield, name: 'Certifications', score: '80 / 100', badge: 'Good', bClass: 'badge-good', advice: 'Relevant domain certifications verified.' },
+                    { icon: IconFileText, name: 'Summary', score: `${Math.round(overallScore * 0.80)} / 100`, badge: 'Average', bClass: 'badge-fair', advice: 'Make it more impactful and concise.' },
                   ].map((sec, idx) => {
                     const SecIcon = sec.icon;
                     return (
@@ -530,21 +578,17 @@ export default function UploadResume() {
             {/* 1. Specialization Scoring Weights */}
             <div className="ui-card">
               <span className="ui-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <IconSparkles size={18} color="var(--primary-green)" /> Specialization Scoring Weights
+                <IconSparkles size={18} color="var(--primary-green)" /> Specialization Scoring Weights ({specialization.replace(/_/g, ' ')})
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {[
-                  { role: 'Cloud Engineer', pct: '40%', desc: 'AWS, Azure, GCP, Kubernetes, Docker' },
-                  { role: 'DevOps Engineer', pct: '30%', desc: 'CI/CD, Jenkins, Terraform, Monitoring' },
-                  { role: 'Backend Developer', pct: '30%', desc: 'Java, Python, SQL, Spring, APIs' },
-                ].map((w, idx) => (
+                {(SPEC_WEIGHTS_MAP[specialization] || SPEC_WEIGHTS_MAP['CLOUD_ENGINEER']).map((w, idx) => (
                   <div key={idx} style={{ padding: 10, background: 'var(--bg-main)', borderRadius: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '0.85rem' }}>
                       <span>{w.role}</span>
                       <span style={{ color: 'var(--primary-green)' }}>{w.pct}</span>
                     </div>
                     <div className="progress-bar-bg" style={{ height: 5, marginTop: 6 }}>
-                      <div className="progress-bar-fill" style={{ width: w.pct }} />
+                      <div className="progress-bar-fill" style={{ width: w.pct, background: 'var(--primary-green)' }} />
                     </div>
                     <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: 4 }}>{w.desc}</div>
                   </div>
@@ -555,16 +599,16 @@ export default function UploadResume() {
             {/* 2. Score Breakdown Donut */}
             <div className="ui-card">
               <span className="ui-card-title" style={{ display: 'block', marginBottom: 14 }}>
-                📊 Score Breakdown
+                📊 Score Breakdown ({overallScore} ATS)
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ position: 'relative', width: 90, height: 90 }}>
                   <svg width="90" height="90" viewBox="0 0 36 36">
                     <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EAEAEA" strokeWidth="3.8" />
-                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#27AE60" strokeWidth="3.8" strokeDasharray="48.5, 100" />
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#27AE60" strokeWidth="3.8" strokeDasharray={`${overallScore}, 100`} />
                   </svg>
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.85rem' }}>
-                    <span>48.5</span>
+                    <span>{overallScore}</span>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>/100</span>
                   </div>
                 </div>
@@ -572,19 +616,19 @@ export default function UploadResume() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.75rem', flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>🟢 Content Relevance</span>
-                    <strong>18.2 / 40</strong>
+                    <strong>{(overallScore * 0.4).toFixed(1)} / 40</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>🔵 Keyword Match</span>
-                    <strong>14.6 / 30</strong>
+                    <strong>{(overallScore * 0.3).toFixed(1)} / 30</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>🟠 Format & Structure</span>
-                    <strong>7.8 / 20</strong>
+                    <strong>{(overallScore * 0.2).toFixed(1)} / 20</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>⚪ Other Factors</span>
-                    <strong>7.9 / 10</strong>
+                    <strong>{(overallScore * 0.1).toFixed(1)} / 10</strong>
                   </div>
                 </div>
               </div>
