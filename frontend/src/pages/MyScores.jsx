@@ -11,10 +11,12 @@ export default function MyScores() {
   const [loading, setLoading] = useState(true);
 
   const fallbackScores = [
-    { id: 's1', spec: 'CLOUD_ENGINEER', score: 64, rating: 'Fair Match', badgeClass: 'badge-fair', summary: 'Decent resume. Focus on adding missing AWS, Kubernetes, and Terraform skills.', content: 70, skills: 65, format: 80, relevance: 45 },
-    { id: 's2', spec: 'DEVOPS_ENGINEER', score: 60, rating: 'Fair Match', badgeClass: 'badge-fair', summary: 'Good experience foundation. Add quantified metrics on deployment automation.', content: 65, skills: 60, format: 75, relevance: 40 },
-    { id: 's3', spec: 'SOFTWARE_ENGINEER', score: 59, rating: 'Fair Match', badgeClass: 'badge-fair', summary: 'Decent foundation. Highlight system architecture and database optimization.', content: 60, skills: 58, format: 70, relevance: 48 },
-    { id: 's4', spec: 'JAVA_DEVELOPER', score: 49, rating: 'Fair Match', badgeClass: 'badge-fair', summary: 'Below average. Significant improvements needed in Spring Boot & Microservices.', content: 50, skills: 45, format: 65, relevance: 35 },
+    { id: 's1', spec: 'FRONTEND_DEVELOPER', score: 89, rating: 'Strong Match', badgeClass: 'badge-excellent', summary: 'Strong frontend engineering match with React, TypeScript, and modern CSS architecture.', content: 95, skills: 92, format: 85, relevance: 88 },
+    { id: 's2', spec: 'JAVA_DEVELOPER', score: 85, rating: 'Strong Match', badgeClass: 'badge-excellent', summary: 'Solid Java Spring Boot experience. High score in microservices & JPA repository design.', content: 90, skills: 88, format: 85, relevance: 82 },
+    { id: 's3', spec: 'FULL_STACK_DEVELOPER', score: 86, rating: 'Strong Match', badgeClass: 'badge-excellent', summary: 'Balanced full-stack score combining REST APIs and modern client UI components.', content: 90, skills: 88, format: 85, relevance: 84 },
+    { id: 's4', spec: 'CLOUD_ENGINEER', score: 78, rating: 'Good Match', badgeClass: 'badge-good', summary: 'Good cloud foundation. Add more AWS IAM and Terraform IaC automation examples.', content: 90, skills: 76, format: 85, relevance: 74 },
+    { id: 's5', spec: 'DEVOPS_ENGINEER', score: 72, rating: 'Good Match', badgeClass: 'badge-good', summary: 'Solid CI/CD understanding. Add quantified metrics on deployment automation & Docker.', content: 90, skills: 70, format: 85, relevance: 68 },
+    { id: 's6', spec: 'CYBER_SECURITY', score: 65, rating: 'Fair Match', badgeClass: 'badge-fair', summary: 'Fair alignment. Highlight zero-trust networking, OWASP, and vulnerability scanning.', content: 90, skills: 60, format: 85, relevance: 58 },
   ];
 
   useEffect(() => {
