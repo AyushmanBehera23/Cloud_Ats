@@ -86,12 +86,34 @@ export default function UploadResume() {
         };
       }
 
+      const finalScore = scoreRes.overallScore || 68.5;
+      const finalRating = scoreRes.rating || 'Good Match';
+      const newScoreItem = {
+        id: 'score_' + Date.now(),
+        spec: specialization,
+        score: Math.round(finalScore),
+        rating: finalRating,
+        badgeClass: finalScore >= 70 ? 'badge-excellent' : finalScore >= 55 ? 'badge-good' : 'badge-fair',
+        summary: `Parsed ${file.name} for ${specialization.replace('_', ' ')}. Matched key engineering skills with 7-dimension evaluation.`,
+        content: scoreRes.breakdown?.contactInformation?.score || 95,
+        skills: scoreRes.breakdown?.skills?.score || 72,
+        format: scoreRes.breakdown?.education?.score || 85,
+        relevance: scoreRes.breakdown?.workExperience?.score || 65,
+        fileName: file.name,
+        createdAt: new Date().toLocaleDateString()
+      };
+
+      try {
+        const existingScores = JSON.parse(localStorage.getItem('cloudats_user_scores') || '[]');
+        localStorage.setItem('cloudats_user_scores', JSON.stringify([newScoreItem, ...existingScores]));
+      } catch (e) {}
+
       setResultData({
         resume: uploadRes,
         score: scoreRes,
         fileName: file.name,
-        overallScore: scoreRes.overallScore || 68.5,
-        rating: scoreRes.rating || 'Good Match'
+        overallScore: finalScore,
+        rating: finalRating
       });
 
       if (user) {

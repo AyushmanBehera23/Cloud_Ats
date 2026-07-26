@@ -18,25 +18,31 @@ export default function MyScores() {
   ];
 
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    api.scores.forUser(user.id)
+    let localScores = [];
+    try {
+      localScores = JSON.parse(localStorage.getItem('cloudats_user_scores') || '[]');
+    } catch (e) {}
+
+    api.scores.forUser(user?.id)
       .then(data => {
         if (data && data.length > 0) {
           const formatted = data.map((s, i) => ({
             id: s.id || `s-${i}`,
             spec: s.specialization || 'SOFTWARE_ENGINEER',
-            score: s.overallScore || 60,
+            score: Math.round(s.overallScore || 60),
             rating: s.rating || 'Fair Match',
-            badgeClass: 'badge-fair',
+            badgeClass: s.overallScore >= 70 ? 'badge-excellent' : s.overallScore >= 55 ? 'badge-good' : 'badge-fair',
             summary: s.breakdownJson?.summary || 'Historical ATS score report.',
             content: 70, skills: 65, format: 75, relevance: 50
           }));
-          setScores(formatted);
+          setScores([...localScores, ...formatted]);
         } else {
-          setScores(fallbackScores);
+          setScores(localScores.length > 0 ? [...localScores, ...fallbackScores] : fallbackScores);
         }
       })
-      .catch(() => setScores(fallbackScores))
+      .catch(() => {
+        setScores(localScores.length > 0 ? [...localScores, ...fallbackScores] : fallbackScores);
+      })
       .finally(() => setLoading(false));
   }, [user]);
 
