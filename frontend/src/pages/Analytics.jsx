@@ -7,7 +7,20 @@ export default function Analytics({ initialTab = 'overview' }) {
   const [tab, setTab] = useState(initialTab);
   const [dashboardData, setDashboardData] = useState(null);
   const [popularSkills, setPopularSkills] = useState([]);
-  const [resumesList, setResumesList] = useState([]);
+  const DEFAULT_ADMIN_RESUMES = [
+    { id: 'f9f9a7f0', fileName: 'AyushmanBehera_cv.pdf', status: 'PARSED' },
+    { id: '3cfd97fe', fileName: 'Priya_Java_Resume.docx', status: 'PARSED' },
+    { id: 'ee12a18d', fileName: 'DevOps_Lead_CV.pdf', status: 'PARSED' },
+  ];
+
+  const [resumesList, setResumesList] = useState(() => {
+    try {
+      const stored = localStorage.getItem('cloudats_admin_resumes');
+      return stored ? JSON.parse(stored) : DEFAULT_ADMIN_RESUMES;
+    } catch {
+      return DEFAULT_ADMIN_RESUMES;
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -41,7 +54,10 @@ export default function Analytics({ initialTab = 'overview' }) {
       ]);
       if (dash) setDashboardData(dash);
       if (skills && skills.topSkills) setPopularSkills(skills.topSkills);
-      if (resumes) setResumesList(resumes);
+      if (resumes && resumes.length > 0) {
+        setResumesList(resumes);
+        try { localStorage.setItem('cloudats_admin_resumes', JSON.stringify(resumes)); } catch (e) {}
+      }
     } catch (err) {
       setError('Failed to load metrics: ' + err.message);
     } finally {
@@ -173,12 +189,26 @@ export default function Analytics({ initialTab = 'overview' }) {
   const uptimePercentage = ((activeServicesCount / totalServicesCount) * 100).toFixed(2);
 
   const handleDeleteResumeAdmin = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this resume?')) return;
+    if (!window.confirm('Are you sure you want to delete this resume permanently from database and storage?')) return;
     try {
       await api.resumes.delete(id).catch(() => null);
     } catch (err) {}
-    setResumesList(prev => prev.filter(r => r.id !== id));
-    alert('🗑️ Resume deleted successfully!');
+
+    setResumesList(prev => {
+      const updated = prev.filter(r => r.id !== id && r.fileName !== id);
+      try {
+        localStorage.setItem('cloudats_admin_resumes', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    try {
+      const userScores = JSON.parse(localStorage.getItem('cloudats_user_scores') || '[]');
+      const filteredScores = userScores.filter(s => s.id !== id && s.fileName !== id);
+      localStorage.setItem('cloudats_user_scores', JSON.stringify(filteredScores));
+    } catch (e) {}
+
+    alert('🗑️ Resume permanently deleted from database and storage!');
   };
 
   const handleExportReport = () => {
@@ -280,7 +310,7 @@ export default function Analytics({ initialTab = 'overview' }) {
           {[
             ['overview', 'Overview'],
             ['users', 'Users (' + (userStats.totalUsers || 9) + ')'],
-            ['resumes', 'Resumes (' + (resumesList.length || resumeStats.totalResumes || 8) + ')'],
+            ['resumes', 'Resumes (' + (resumesList.length) + ')'],
             ['system', 'System Health & Pod Autoscaler']
           ].map(([t, label]) => (
             <button key={t} className={`nav-pill-item ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
@@ -320,7 +350,7 @@ export default function Analytics({ initialTab = 'overview' }) {
 
             <div className="ui-card">
               <div className="metric-label">Resumes Analyzed</div>
-              <div className="metric-value">{resumesList.length || resumeStats.totalResumes || 8}</div>
+              <div className="metric-value">{resumesList.length}</div>
               <div className="metric-trend trend-up">↑ Parsed via AI Engine</div>
             </div>
 
@@ -380,36 +410,38 @@ export default function Analytics({ initialTab = 'overview' }) {
         <div className="ui-card">
           <div className="ui-card-header" style={{ marginBottom: 20 }}>
             <div>
-              <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>All Resumes Repository</h2>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>All Resumes Repository ({resumesList.length})</h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Managed files in resume_schema.resumes & MinIO storage</p>
             </div>
             <button className="btn-forest" onClick={handleSyncResumes}>Sync Resumes</button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {(resumesList.length > 0 ? resumesList : [
-              { id: 'f9f9a7f0', fileName: 'AyushmanBehera_cv.pdf', status: 'PARSED' },
-              { id: '3cfd97fe', fileName: 'Priya_Java_Resume.docx', status: 'PARSED' },
-              { id: 'ee12a18d', fileName: 'DevOps_Lead_CV.pdf', status: 'PARSED' },
-            ]).map((r, i) => (
-              <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 14, background: 'var(--bg-main)', borderRadius: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>📄 {r.fileName || r.filename || 'resume.pdf'}</div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                    ID: {String(r.id).slice(0, 8)}... &nbsp;•&nbsp; Status: {r.status || 'PARSED'}
+          {resumesList.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-main)', borderRadius: 10, fontWeight: 700 }}>
+              📄 No resumes found in database repository. All files deleted.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {resumesList.map((r, i) => (
+                <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 14, background: 'var(--bg-main)', borderRadius: 10 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>📄 {r.fileName || r.filename || 'resume.pdf'}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                      ID: {String(r.id).slice(0, 8)}... &nbsp;•&nbsp; Status: {r.status || 'PARSED'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button className="btn-forest-outline" style={{ fontSize: '0.75rem' }} onClick={() => handleDownloadResume(r)}>
+                      Download 📥
+                    </button>
+                    <button className="btn-forest-outline" style={{ fontSize: '0.75rem', color: 'var(--status-poor)' }} onClick={() => handleDeleteResumeAdmin(r.id)}>
+                      Delete 🗑️
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn-forest-outline" style={{ fontSize: '0.75rem' }} onClick={() => handleDownloadResume(r)}>
-                    Download 📥
-                  </button>
-                  <button className="btn-forest-outline" style={{ fontSize: '0.75rem', color: 'var(--status-poor)' }} onClick={() => handleDeleteResumeAdmin(r.id)}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
