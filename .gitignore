@@ -1,42 +1,53 @@
-HELP.md
+# ============================================================================
+# CloudATS — .gitignore
+# ============================================================================
+
+# ── Java / Maven ──────────────────────────────────────────────
 target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
 .mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
+# ── IDE ───────────────────────────────────────────────────────
+.idea/
 *.iml
+*.iws
 *.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
+.project
+.classpath
+.settings/
 .vscode/
+*.swp
+*.swo
+*~
+.DS_Store
 
-### Node / Dependencies ###
+# ── Node / Frontend ──────────────────────────────────────────
 node_modules/
-
-### Database & Local Files ###
-data/
-*.db
 dist/
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
 
+# ── Docker ────────────────────────────────────────────────────
+# Don't ignore docker-compose.yml or Dockerfiles
+*.pid
+
+# ── Kubernetes ────────────────────────────────────────────────
+# Don't commit generated secrets
+k8s/**/secrets-generated.yaml
+
+# ── Monitoring ────────────────────────────────────────────────
+# Prometheus/Grafana data volumes
+monitoring/prometheus/data/
+monitoring/grafana/data/
+
+# ── Misc ──────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.temp
+logs/

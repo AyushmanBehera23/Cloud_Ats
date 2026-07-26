@@ -1,0 +1,107 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "CPU Usage by Service",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "process_cpu_usage{job=~\".*-service|api-gateway\"}",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "title": "JVM Memory Usage",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{area=\"heap\",job=~\".*-service|api-gateway\"} / 1024 / 1024",
+          "legendFormat": "{{job}} (MB)"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Request Rate",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{job=~\".*-service|api-gateway\"}[5m])",
+          "legendFormat": "{{job}} {{uri}}"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Request Latency (p95)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=~\".*-service|api-gateway\"}[5m]))",
+          "legendFormat": "{{job}} p95"
+        }
+      ]
+    },
+    {
+      "title": "Service Health",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "up{job=~\".*-service|api-gateway\"}",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "title": "JVM Thread Count",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "jvm_threads_live_threads{job=~\".*-service|api-gateway\"}",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "title": "Database Connection Pool",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active{job=~\".*-service\"}",
+          "legendFormat": "{{job}} active"
+        },
+        {
+          "expr": "hikaricp_connections_idle{job=~\".*-service\"}",
+          "legendFormat": "{{job}} idle"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["cloudats", "spring-boot"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "CloudATS Overview",
+  "uid": "cloudats-overview",
+  "version": 1
+}

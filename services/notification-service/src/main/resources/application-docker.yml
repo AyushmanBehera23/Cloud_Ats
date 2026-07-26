@@ -1,0 +1,7 @@
+server:
+  port: 8086
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/cloudats?currentSchema=notification_schema
+    username: cloudats_admin
+    password: cloudats_secret_2024

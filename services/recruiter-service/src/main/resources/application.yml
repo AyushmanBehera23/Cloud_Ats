@@ -1,0 +1,31 @@
+server:
+  port: 8084
+spring:
+  application:
+    name: recruiter-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cloudats?currentSchema=recruiter_schema
+    username: cloudats_admin
+    password: cloudats_secret_2024
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: recruiter_schema
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    schemas: recruiter_schema
+    locations: classpath:db/migration
+
+ats-scoring-service:
+  url: http://localhost:8083
+resume-service:
+  url: http://localhost:8082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics

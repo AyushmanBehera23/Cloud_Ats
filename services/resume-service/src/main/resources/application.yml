@@ -1,0 +1,40 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: resume-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cloudats?currentSchema=resume_schema
+    username: cloudats_admin
+    password: cloudats_secret_2024
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: resume_schema
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    schemas: resume_schema
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: cloudats_minio
+  secret-key: cloudats_minio_secret_2024
+  bucket: resumes
+
+auth-service:
+  url: http://localhost:8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics

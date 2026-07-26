@@ -1,0 +1,29 @@
+server:
+  port: 8083
+spring:
+  application:
+    name: ats-scoring-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cloudats?currentSchema=scoring_schema
+    username: cloudats_admin
+    password: cloudats_secret_2024
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: scoring_schema
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    schemas: scoring_schema
+    locations: classpath:db/migration
+
+resume-service:
+  url: http://localhost:8082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics

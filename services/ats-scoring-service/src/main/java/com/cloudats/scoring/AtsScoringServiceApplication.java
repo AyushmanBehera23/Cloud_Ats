@@ -1,0 +1,11 @@
+package com.cloudats.scoring;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AtsScoringServiceApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(AtsScoringServiceApplication.class, args);
+    }
+}

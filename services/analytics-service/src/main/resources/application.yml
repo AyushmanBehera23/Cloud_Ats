@@ -1,0 +1,19 @@
+server:
+  port: 8085
+spring:
+  application:
+    name: analytics-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cloudats
+    username: cloudats_admin
+    password: cloudats_secret_2024
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics

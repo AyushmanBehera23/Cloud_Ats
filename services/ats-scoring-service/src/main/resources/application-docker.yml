@@ -1,0 +1,9 @@
+server:
+  port: 8083
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/cloudats?currentSchema=scoring_schema
+    username: cloudats_admin
+    password: cloudats_secret_2024
+resume-service:
+  url: http://resume-service:8082

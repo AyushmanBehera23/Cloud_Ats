@@ -1,0 +1,13 @@
+server:
+  port: 8082
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/cloudats?currentSchema=resume_schema
+    username: cloudats_admin
+    password: cloudats_secret_2024
+minio:
+  endpoint: http://minio:9000
+  access-key: cloudats_minio
+  secret-key: cloudats_minio_secret_2024
+auth-service:
+  url: http://auth-service:8081

@@ -1,0 +1,146 @@
+name: CloudATS CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+  DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+jobs:
+  # ────────────────────────────────────────────────
+  # Build and Test all services
+  # ────────────────────────────────────────────────
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - auth-service
+          - resume-service
+          - ats-scoring-service
+          - recruiter-service
+          - analytics-service
+          - notification-service
+          - api-gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and Test ${{ matrix.service }}
+        working-directory: services/${{ matrix.service }}
+        run: |
+          mvn clean verify -B
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/surefire-reports/
+
+  # ────────────────────────────────────────────────
+  # Build Docker images and push to Docker Hub
+  # ────────────────────────────────────────────────
+  docker-build-push:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        service:
+          - auth-service
+          - resume-service
+          - ats-scoring-service
+          - recruiter-service
+          - analytics-service
+          - notification-service
+          - api-gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_HUB_USERNAME }}
+          password: ${{ env.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.DOCKER_HUB_USERNAME }}/cloudats-${{ matrix.service }}:latest
+            ${{ env.DOCKER_HUB_USERNAME }}/cloudats-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ────────────────────────────────────────────────
+  # Deploy to Kubernetes
+  # ────────────────────────────────────────────────
+  deploy:
+    needs: docker-build-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/base/namespace.yaml
+          kubectl apply -f k8s/storage/
+          kubectl apply -f k8s/services/
+          kubectl apply -f k8s/networking/
+
+      - name: Update images to latest
+        run: |
+          for svc in auth-service resume-service ats-scoring-service recruiter-service analytics-service notification-service api-gateway; do
+            kubectl set image deployment/$svc $svc=${{ env.DOCKER_HUB_USERNAME }}/cloudats-$svc:${{ github.sha }} -n cloudats || true
+          done
+
+      - name: Wait for rollout
+        run: |
+          for svc in auth-service resume-service ats-scoring-service recruiter-service analytics-service notification-service api-gateway; do
+            kubectl rollout status deployment/$svc -n cloudats --timeout=300s || true
+          done
+
+  # ────────────────────────────────────────────────
+  # Rollback (manual trigger)
+  # ────────────────────────────────────────────────
+  rollback:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+
+      - name: Rollback all deployments
+        run: |
+          for svc in auth-service resume-service ats-scoring-service recruiter-service analytics-service notification-service api-gateway; do
+            kubectl rollout undo deployment/$svc -n cloudats || true
+          done
