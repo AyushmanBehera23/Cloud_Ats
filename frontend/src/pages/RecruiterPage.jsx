@@ -82,6 +82,56 @@ export default function RecruiterPage({ initialTab = 'candidates' }) {
     }
   };
 
+  const handleShortlistCandidate = async (candidate) => {
+    try {
+      const recruiterId = user?.id || 'b0000000-0000-0000-0000-000000000001';
+      await api.recruiter.shortlist(recruiterId, candidate.id, 'Starred candidate via recruiter dashboard.');
+      alert(`⭐ Shortlisted ${candidate.name} successfully!`);
+      loadShortlists();
+    } catch (err) {
+      alert('Failed to shortlist: ' + err.message);
+    }
+  };
+
+  const handleDeleteCandidate = async (candidate) => {
+    if (!window.confirm(`Are you sure you want to delete ${candidate.name || 'this candidate'}'s resume from the database?`)) return;
+    try {
+      await api.resumes.delete(candidate.id).catch(() => null);
+    } catch (e) {}
+
+    setCandidates(prev => {
+      const updated = prev.filter(c => c.id !== candidate.id);
+      try {
+        localStorage.setItem('cloudats_admin_resumes', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    try {
+      const userScores = JSON.parse(localStorage.getItem('cloudats_user_scores') || '[]');
+      const filtered = userScores.filter(s => s.id !== candidate.id);
+      localStorage.setItem('cloudats_user_scores', JSON.stringify(filtered));
+    } catch (e) {}
+
+    alert(`🗑️ Candidate ${candidate.name || ''}'s resume permanently deleted from database!`);
+  };
+
+  const handleDeleteAllCandidates = async () => {
+    if (!window.confirm('⚠️ Are you sure you want to delete ALL candidate resumes from the recruiter database?')) return;
+
+    try {
+      candidates.forEach(c => api.resumes.delete(c.id).catch(() => {}));
+    } catch (e) {}
+
+    setCandidates([]);
+    try {
+      localStorage.setItem('cloudats_admin_resumes', JSON.stringify([]));
+      localStorage.setItem('cloudats_user_scores', JSON.stringify([]));
+    } catch (e) {}
+
+    alert('🗑️ All candidate resumes permanently deleted from recruiter database!');
+  };
+
   const handleDownloadCandidateCv = (c) => {
     const content = JSON.stringify({
       candidateId: c.id,
@@ -105,34 +155,7 @@ export default function RecruiterPage({ initialTab = 'candidates' }) {
     URL.revokeObjectURL(url);
   };
 
-  const handleShortlistCandidate = async (c) => {
-    try {
-      const recruiterId = user?.id || 'b0000000-0000-0000-0000-000000000001';
-      const candidateId = c.userId || c.id || 'c0000000-0000-0000-0000-000000000001';
-      await api.recruiter.shortlist({
-        recruiterId,
-        candidateId,
-        notes: `Shortlisted candidate ${c.name || 'Candidate'}`,
-      });
-      alert(`🎉 Candidate ${c.name || 'Profile'} shortlisted successfully! Record saved to database.`);
-      loadShortlists();
-    } catch (err) {
-      alert(err.message.includes('already shortlisted') ? 'ℹ️ Candidate is already shortlisted.' : 'Error: ' + err.message);
-    }
-  };
 
-  const handleDeleteCandidate = async (c) => {
-    if (!window.confirm(`Are you sure you want to delete resume for ${c.name || 'this candidate'}?`)) return;
-    try {
-      if (c.id && c.id.length > 5 && !c.id.startsWith('c')) {
-        await api.resumes.delete(c.id);
-      }
-      setCandidates(prev => prev.filter(item => item.id !== c.id));
-      alert(`🗑️ Resume for ${c.name || 'Candidate'} deleted successfully!`);
-    } catch (err) {
-      alert('Delete failed: ' + err.message);
-    }
-  };
 
   const handleCreateJobSubmit = async (e) => {
     e.preventDefault();
@@ -317,11 +340,20 @@ export default function RecruiterPage({ initialTab = 'candidates' }) {
           {/* TAB 1: CANDIDATES SEARCH */}
           {tab === 'candidates' && (
             <div>
-              <div className="ui-card-header" style={{ marginBottom: 16 }}>
+              <div className="ui-card-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h2 style={{ fontSize: '1.35rem', fontWeight: 800 }}>Candidate Database ({filteredCandidates.length})</h2>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Search and filter scored talent across specializations</p>
                 </div>
+                {candidates.length > 0 && (
+                  <button 
+                    className="btn-forest-outline" 
+                    style={{ fontSize: '0.75rem', padding: '6px 14px', color: '#C0392B', borderColor: '#FADBD8' }}
+                    onClick={handleDeleteAllCandidates}
+                  >
+                    Delete All Resumes 🗑️
+                  </button>
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

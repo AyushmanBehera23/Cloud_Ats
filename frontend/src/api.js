@@ -37,7 +37,7 @@ async function request(method, path, body = null, isMultipart = false) {
 
   if (res.status === 401) {
     localStorage.removeItem('cloudats_token');
-    window.location.href = '/login';
+    window.location.hash = '#/login';
     return;
   }
 

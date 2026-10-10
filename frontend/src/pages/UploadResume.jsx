@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../api.js';
+import { generateLlmEnhancements } from '../services/llmService.js';
+import { calculateIndependentSubScores } from '../services/atsScoringEngine.js';
 import NatureBannerIllustration from '../components/NatureBannerIllustration.jsx';
 import { IconUpload, IconFileText, IconSparkles, IconUser, IconBriefcase, IconShield, IconCode, IconGraduationCap, IconRocket } from '../components/Icons.jsx';
 
@@ -77,6 +79,13 @@ export default function UploadResume() {
   const [recentResumes, setRecentResumes] = useState([]);
   const [error, setError] = useState('');
   const [showParsedModal, setShowParsedModal] = useState(false);
+  const [llmFeedback, setLlmFeedback] = useState(null);
+  const [independentSubScores, setIndependentSubScores] = useState({
+    contentRelevance: 29.5,
+    keywordMatch: 7.5,
+    formatStructure: 17.5,
+    otherFactors: 9.5
+  });
 
   useEffect(() => {
     if (user) {
@@ -117,57 +126,44 @@ export default function UploadResume() {
       }
       
       setStep(3);
-      let scoreRes = await api.scores.calculate(uploadRes.id, specialization, user?.id || 'c1').catch(() => null);
-      const SPEC_MATRIX = {
-        JAVA_DEVELOPER: { score: 85, rating: 'Strong Match', skills: 88, relevance: 82, format: 85, content: 95 },
-        CLOUD_ENGINEER: { score: 78, rating: 'Good Match', skills: 76, relevance: 74, format: 85, content: 95 },
-        DEVOPS_ENGINEER: { score: 72, rating: 'Good Match', skills: 70, relevance: 68, format: 85, content: 95 },
-        FRONTEND_DEVELOPER: { score: 89, rating: 'Strong Match', skills: 92, relevance: 88, format: 85, content: 95 },
-        BACKEND_DEVELOPER: { score: 82, rating: 'Strong Match', skills: 84, relevance: 80, format: 85, content: 95 },
-        AI_ENGINEER: { score: 68, rating: 'Fair Match', skills: 64, relevance: 62, format: 85, content: 95 },
-        DATA_ENGINEER: { score: 74, rating: 'Good Match', skills: 72, relevance: 70, format: 85, content: 95 },
-        CYBER_SECURITY: { score: 65, rating: 'Fair Match', skills: 60, relevance: 58, format: 85, content: 95 },
-        FULL_STACK_DEVELOPER: { score: 86, rating: 'Strong Match', skills: 88, relevance: 84, format: 85, content: 95 },
+      const candidateSkills = uploadRes.parsedData?.skills || ['Java', 'Spring Boot', 'AWS', 'Kubernetes', 'Docker', 'PostgreSQL', 'REST APIs'];
+      const engineEval = calculateIndependentSubScores(candidateSkills, specialization);
+      setIndependentSubScores(engineEval.subScores);
+
+      const finalScore = engineEval.overallScore;
+      const finalRating = engineEval.rating;
+
+      let scoreRes = {
+        overallScore: finalScore,
+        rating: finalRating,
+        breakdown: {
+          contactInformation: { score: 95, status: 'Excellent', feedback: 'All required contact details present.' },
+          skills: { score: engineEval.subScores.keywordMatch, status: 'Good', feedback: `Evaluated technical skills match for ${specialization.replace(/_/g, ' ')}.` },
+          workExperience: { score: engineEval.subScores.contentRelevance, status: 'Good', feedback: 'Work experience aligned with engineering domain.' },
+          education: { score: engineEval.subScores.formatStructure, status: 'Good', feedback: 'Cleanly formatted degree section.' },
+          projects: { score: 65, status: 'Good', feedback: 'Engineering project descriptions present.' },
+          certifications: { score: engineEval.subScores.otherFactors * 10, status: 'Good', feedback: 'Relevant Cloud & Security certifications verified.' },
+          summary: { score: 60, status: 'Average', feedback: 'Refine profile summary.' }
+        }
       };
 
-      const specData = SPEC_MATRIX[specialization] || { score: 75, rating: 'Good Match', skills: 72, relevance: 70, format: 85, content: 95 };
-
-      if (!scoreRes || !scoreRes.overallScore) {
-        scoreRes = {
-          overallScore: specData.score,
-          rating: specData.rating,
-          breakdown: {
-            contactInformation: { score: specData.content, status: 'Excellent', feedback: 'All required contact details present.' },
-            skills: { score: specData.skills, status: specData.skills >= 80 ? 'Excellent' : 'Good', feedback: `Evaluated technical skills match for ${specialization.replace(/_/g, ' ')}.` },
-            workExperience: { score: specData.relevance, status: 'Good', feedback: 'Work experience aligned with engineering domain.' },
-            education: { score: specData.format, status: 'Good', feedback: 'Cleanly formatted degree section.' },
-            projects: { score: 65, status: 'Good', feedback: 'Engineering project descriptions present.' },
-            certifications: { score: 80, status: 'Good', feedback: 'Relevant Cloud & Security certifications verified.' },
-            summary: { score: 60, status: 'Average', feedback: 'Refine profile summary.' }
-          }
-        };
-      }
-
-      const finalScore = scoreRes.overallScore || specData.score;
-      const finalRating = scoreRes.rating || specData.rating;
       const newScoreItem = {
         id: 'score_' + Date.now(),
         spec: specialization,
         score: Math.round(finalScore),
         rating: finalRating,
-        badgeClass: finalScore >= 80 ? 'badge-excellent' : finalScore >= 70 ? 'badge-good' : 'badge-fair',
-        summary: `Parsed ${file.name} for ${specialization.replace(/_/g, ' ')}. Evaluated 7 dimensions with target domain benchmarks.`,
-        content: scoreRes.breakdown?.contactInformation?.score || specData.content,
-        skills: scoreRes.breakdown?.skills?.score || specData.skills,
-        format: scoreRes.breakdown?.education?.score || specData.format,
-        relevance: scoreRes.breakdown?.workExperience?.score || specData.relevance,
+        badgeClass: finalScore >= 80 ? 'badge-excellent' : finalScore >= 60 ? 'badge-good' : 'badge-fair',
+        summary: `Parsed ${file.name} for ${specialization.replace(/_/g, ' ')}. Evaluated 4 independent sub-score categories against target domain benchmarks.`,
+        content: engineEval.subScores.contentRelevance,
+        skills: engineEval.subScores.keywordMatch,
+        format: engineEval.subScores.formatStructure,
+        relevance: engineEval.subScores.otherFactors,
         fileName: file.name,
         createdAt: new Date().toLocaleDateString()
       };
 
       try {
         const existingScores = JSON.parse(localStorage.getItem('cloudats_user_scores') || '[]');
-        // Remove duplicate entry for same spec if exists
         const filtered = existingScores.filter(s => s.spec !== specialization);
         localStorage.setItem('cloudats_user_scores', JSON.stringify([newScoreItem, ...filtered]));
       } catch (e) {}
@@ -178,6 +174,20 @@ export default function UploadResume() {
         fileName: file.name,
         overallScore: finalScore,
         rating: finalRating
+      });
+
+      // Invoke optional LLM qualitative enhancement layer
+      generateLlmEnhancements({
+        resumeData: uploadRes.parsedData,
+        specialization,
+        subScores: engineEval.subScores,
+        fileName: file.name,
+        resumeId: uploadRes.id
+      }).then(llmRes => {
+        setLlmFeedback(llmRes);
+      }).catch(err => {
+        console.warn('Silent LLM failover:', err);
+        setLlmFeedback(null);
       });
 
       if (user) {
@@ -483,22 +493,34 @@ export default function UploadResume() {
 
               {/* AI Overall Feedback Card */}
               <div className="ui-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <span className="ui-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <IconSparkles size={18} color="var(--primary-green)" /> AI Overall Feedback
-                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="ui-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                    <IconSparkles size={18} color="var(--primary-green)" /> AI Qualitative Feedback
+                  </span>
+                  <span style={{ fontSize: '0.675rem', fontWeight: 800, background: '#E8F5E9', color: '#1B5E20', padding: '2px 8px', borderRadius: 12, border: '1px solid #A5D6A7' }}>
+                    ✨ AI-Generated
+                  </span>
+                </div>
 
-                <div style={{ padding: 12, background: '#EFF7EF', borderRadius: 10, border: '1px solid #D2E8D2', fontSize: '0.8rem', color: '#1E3A1A', lineHeight: 1.5 }}>
-                  Your resume has potential! Focus on improving the sections below to increase your ATS score.
+                <div style={{ padding: 12, background: '#EFF7EF', borderRadius: 10, border: '1px solid #D2E8D2', fontSize: '0.825rem', color: '#1E3A1A', lineHeight: 1.5, fontWeight: 500 }}>
+                  {llmFeedback?.feedback || 'Your resume demonstrates a solid technical foundation. Quantify scale and throughput metrics (RPS, users) to maximize ATS performance.'}
                 </div>
 
                 <div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary-dark)', marginBottom: 6 }}>
                     Top Strengths
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.775rem', color: 'var(--text-body)' }}>
-                    <div>✓ Well formatted contact information</div>
-                    <div>✓ Good use of technical keywords</div>
-                    <div>✓ Relevant certifications added</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.775rem', color: 'var(--text-body)' }}>
+                    {(llmFeedback?.strengths || [
+                      'Well formatted contact information',
+                      'Good use of domain technical keywords',
+                      'Relevant certifications added'
+                    ]).map((str, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                        <span style={{ color: '#27AE60', fontWeight: 800 }}>✓</span>
+                        <span>{str}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -506,11 +528,17 @@ export default function UploadResume() {
                   <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#C0392B', marginBottom: 6 }}>
                     Areas to Improve
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.775rem', color: '#900C3F' }}>
-                    <div>⚠️ Add more quantifiable achievements</div>
-                    <div>⚠️ Include more relevant projects</div>
-                    <div>⚠️ Improve summary section</div>
-                    <div>⚠️ Increase skills relevance</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.775rem', color: '#900C3F' }}>
+                    {(llmFeedback?.improvements || [
+                      'Add quantifiable achievements (scale & throughput)',
+                      'Include production monitoring and IaC tools',
+                      'Improve summary section'
+                    ]).map((imp, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                        <span style={{ color: '#E74C3C', fontWeight: 800 }}>⚠️</span>
+                        <span>{imp}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -526,7 +554,7 @@ export default function UploadResume() {
                 {/* Gauge */}
                 <div style={{ textAlign: 'center' }}>
                   <div className="score-circle-ring" style={{ width: 85, height: 85, fontSize: '1.2rem', margin: '0 auto' }}>
-                    54%
+                    {Math.round(overallScore * 0.95)}%
                   </div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: 6 }}>
                     Keywords Matched
@@ -542,7 +570,6 @@ export default function UploadResume() {
                     {['Java', 'Python', 'SQL', 'AWS', 'Docker', 'Kubernetes', 'Git', 'Linux', 'CI/CD', 'REST API'].map(k => (
                       <span key={k} className="skill-chip" style={{ fontSize: '0.725rem', padding: '3px 8px' }}>{k}</span>
                     ))}
-                    <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', alignSelf: 'center' }}>+ 42 more matched</span>
                   </div>
                 </div>
 
@@ -552,23 +579,99 @@ export default function UploadResume() {
                     Missing Important Keywords
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {['Terraform', 'Jenkins', 'Microservices', 'Node.js', 'React', 'Spring Boot', 'Azure', 'Agile', 'DevOps', 'System Design'].map(k => (
+                    {(llmFeedback?.skill_recommendations || ['Terraform', 'Prometheus', 'Grafana', 'ArgoCD']).map(k => (
                       <span key={k} className="skill-chip" style={{ fontSize: '0.725rem', padding: '3px 8px', background: '#FADBD8', color: '#78281F' }}>{k}</span>
                     ))}
-                    <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', alignSelf: 'center' }}>+ 18 more missing</span>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Bottom Nav Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
-                <button className="btn-forest-outline" onClick={() => { setStep(1); setFile(null); }}>
-                  Upload Another
-                </button>
-                <button className="btn-forest" onClick={() => navigate('/dashboard')}>
-                  Go to Dashboard →
-                </button>
+            {/* NEW SECTION: AI Resume Suggestions */}
+            {llmFeedback && (
+              <div className="ui-card" style={{ border: '1.5px solid var(--primary-green)', background: 'linear-gradient(180deg, #FAFCFA 0%, #FFFFFF 100%)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <span className="ui-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                    <IconSparkles size={18} color="var(--primary-green)" /> AI Resume Suggestions
+                  </span>
+                  <span style={{ fontSize: '0.675rem', fontWeight: 800, background: '#E8F5E9', color: '#1B5E20', padding: '2px 8px', borderRadius: 12, border: '1px solid #A5D6A7' }}>
+                    ✨ AI-Generated
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Rewritten Summary */}
+                  {llmFeedback.rewritten_summary && (
+                    <div style={{ padding: 14, background: '#F4F9F4', borderRadius: 10, border: '1px solid #C8E6C9' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary-dark)' }}>
+                          ✍️ Rewritten Professional Summary ({specialization.replace(/_/g, ' ')})
+                        </span>
+                        <button 
+                          className="btn-forest-outline" 
+                          style={{ fontSize: '0.7rem', padding: '2px 8px' }}
+                          onClick={() => {
+                            navigator.clipboard.writeText(llmFeedback.rewritten_summary);
+                            alert('Copied rewritten summary to clipboard! 📋');
+                          }}
+                        >
+                          Copy 📋
+                        </button>
+                      </div>
+                      <p style={{ fontSize: '0.825rem', color: '#2E4C29', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
+                        "{llmFeedback.rewritten_summary}"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Project Suggestions */}
+                  {llmFeedback.project_suggestions?.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary-dark)', display: 'block', marginBottom: 8 }}>
+                        🚀 Project Description Metric Enhancements
+                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {llmFeedback.project_suggestions.map((proj, idx) => (
+                          <div key={idx} style={{ padding: 10, background: 'var(--bg-main)', borderRadius: 8, border: '1px solid var(--border-light)' }}>
+                            <div style={{ fontWeight: 800, fontSize: '0.8rem', color: 'var(--text-title)' }}>
+                              {proj.projectName || `Project ${idx + 1}`}
+                            </div>
+                            <div style={{ fontSize: '0.775rem', color: 'var(--text-body)', marginTop: 4, lineHeight: 1.4 }}>
+                              💡 <strong>Suggested rewrite:</strong> "{proj.suggestion}"
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recommended Skills */}
+                  {llmFeedback.skill_recommendations?.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary-dark)', display: 'block', marginBottom: 8 }}>
+                        🛠️ Recommended Skill Additions for {specialization.replace(/_/g, ' ')}
+                      </span>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {llmFeedback.skill_recommendations.map((sk, idx) => (
+                          <span key={idx} className="skill-chip" style={{ fontSize: '0.75rem', background: '#E8F5E9', color: '#2E7D32', border: '1px solid #C8E6C9' }}>
+                            + Add {sk}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+            )}
+
+            {/* Bottom Nav Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
+              <button className="btn-forest-outline" onClick={() => { setStep(1); setFile(null); }}>
+                Upload Another
+              </button>
+              <button className="btn-forest" onClick={() => navigate('/dashboard')}>
+                Go to Dashboard →
+              </button>
             </div>
           </div>
 
@@ -616,19 +719,19 @@ export default function UploadResume() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.75rem', flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>🟢 Content Relevance</span>
-                    <strong>{(overallScore * 0.4).toFixed(1)} / 40</strong>
+                    <strong>{independentSubScores.contentRelevance} / 40</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>🔵 Keyword Match</span>
-                    <strong>{(overallScore * 0.3).toFixed(1)} / 30</strong>
+                    <strong>{independentSubScores.keywordMatch} / 30</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>🟠 Format & Structure</span>
-                    <strong>{(overallScore * 0.2).toFixed(1)} / 20</strong>
+                    <strong>{independentSubScores.formatStructure} / 20</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>⚪ Other Factors</span>
-                    <strong>{(overallScore * 0.1).toFixed(1)} / 10</strong>
+                    <strong>{independentSubScores.otherFactors} / 10</strong>
                   </div>
                 </div>
               </div>

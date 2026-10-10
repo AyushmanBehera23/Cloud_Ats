@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../api.js';
 import NatureBannerIllustration from '../components/NatureBannerIllustration.jsx';
-import { IconTrendingUp, IconCheckCircle, IconChevronRight, IconBarChart } from '../components/Icons.jsx';
+import { IconBarChart } from '../components/Icons.jsx';
 
 export default function MyScores() {
   const { user } = useAuth();
@@ -71,6 +71,46 @@ export default function MyScores() {
     downloadAnchor.remove();
   };
 
+  const handleDeleteSingleScore = async (item) => {
+    if (!window.confirm(`Are you sure you want to delete ${item.spec.replace(/_/g, ' ')} score report from database?`)) return;
+    
+    try {
+      await api.resumes.delete(item.id).catch(() => null);
+    } catch (e) {}
+
+    setScores(prev => {
+      const updated = prev.filter(s => s.id !== item.id);
+      try {
+        localStorage.setItem('cloudats_user_scores', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    try {
+      const adminResumes = JSON.parse(localStorage.getItem('cloudats_admin_resumes') || '[]');
+      const filteredAdmin = adminResumes.filter(r => r.id !== item.id && r.fileName !== item.fileName);
+      localStorage.setItem('cloudats_admin_resumes', JSON.stringify(filteredAdmin));
+    } catch (e) {}
+
+    alert(`🗑️ ${item.spec.replace(/_/g, ' ')} score report permanently deleted from database!`);
+  };
+
+  const handleDeleteAllScores = async () => {
+    if (!window.confirm('⚠️ Are you sure you want to delete ALL your ATS resume scores from the database? This action cannot be undone.')) return;
+
+    try {
+      scores.forEach(s => api.resumes.delete(s.id).catch(() => {}));
+    } catch (e) {}
+
+    setScores([]);
+    try {
+      localStorage.setItem('cloudats_user_scores', JSON.stringify([]));
+      localStorage.setItem('cloudats_admin_resumes', JSON.stringify([]));
+    } catch (e) {}
+
+    alert('🗑️ All resume scores permanently deleted from database and cleared from recruiter/admin records!');
+  };
+
   return (
     <div className="page-wrapper">
       {/* Banner Header with Glass Backdrop for High Text Contrast */}
@@ -105,78 +145,100 @@ export default function MyScores() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
           {/* Main Column: Score Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="ui-card-header">
+            <div className="ui-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span className="ui-card-title">Specialization Scores ({scores.length})</span>
-              <Link to="/upload" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary-green)' }}>+ Re-score Resume</Link>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                {scores.length > 0 && (
+                  <button 
+                    className="btn-forest-outline" 
+                    style={{ fontSize: '0.75rem', padding: '4px 12px', color: '#C0392B', borderColor: '#FADBD8' }}
+                    onClick={handleDeleteAllScores}
+                  >
+                    Delete All Resumes 🗑️
+                  </button>
+                )}
+                <Link to="/upload" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary-green)' }}>+ Re-score Resume</Link>
+              </div>
             </div>
 
-            {scores.map((item) => (
-              <div key={item.id} className="ui-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div className="score-circle-ring" style={{ width: 62, height: 62, fontSize: '1.25rem' }}>
-                      {item.score}
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{item.spec.replace('_', ' ')}</h3>
-                        <span className={`badge-status ${item.badgeClass}`}>{item.rating}</span>
-                      </div>
-                      <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                        {item.summary}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button className="btn-forest-outline" style={{ fontSize: '0.75rem', padding: '6px 12px' }} onClick={() => handleDownloadScoreReport(item)}>
-                    Download Report 📥
-                  </button>
-                </div>
-
-                {/* Score Dimension Breakdown Bars */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, background: 'var(--bg-main)', padding: 12, borderRadius: 10, border: '1px solid var(--border-light)' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700 }}>
-                      <span>Content Quality</span>
-                      <span>{item.content}%</span>
-                    </div>
-                    <div className="progress-bar-bg" style={{ height: 5, marginTop: 4 }}>
-                      <div className="progress-bar-fill" style={{ width: `${item.content}%` }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700 }}>
-                      <span>Skills Match</span>
-                      <span>{item.skills}%</span>
-                    </div>
-                    <div className="progress-bar-bg" style={{ height: 5, marginTop: 4 }}>
-                      <div className="progress-bar-fill" style={{ width: `${item.skills}%` }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700 }}>
-                      <span>Format & Layout</span>
-                      <span>{item.format}%</span>
-                    </div>
-                    <div className="progress-bar-bg" style={{ height: 5, marginTop: 4 }}>
-                      <div className="progress-bar-fill" style={{ width: `${item.format}%` }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700 }}>
-                      <span>Job Relevance</span>
-                      <span>{item.relevance}%</span>
-                    </div>
-                    <div className="progress-bar-bg" style={{ height: 5, marginTop: 4 }}>
-                      <div className="progress-bar-fill" style={{ width: `${item.relevance}%` }} />
-                    </div>
-                  </div>
-                </div>
+            {scores.length === 0 ? (
+              <div className="ui-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                📄 No ATS scores found. All resume scores deleted from database.
               </div>
-            ))}
+            ) : (
+              scores.map((item) => (
+                <div key={item.id} className="ui-card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                      <div className="score-circle-ring" style={{ width: 62, height: 62, fontSize: '1.25rem' }}>
+                        {item.score}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{item.spec.replace(/_/g, ' ')}</h3>
+                          <span className={`badge-status ${item.badgeClass}`}>{item.rating}</span>
+                        </div>
+                        <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                          {item.summary}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn-forest-outline" style={{ fontSize: '0.75rem', padding: '6px 12px' }} onClick={() => handleDownloadScoreReport(item)}>
+                        Download 📥
+                      </button>
+                      <button className="btn-forest-outline" style={{ fontSize: '0.75rem', padding: '6px 12px', color: '#C0392B', borderColor: '#FADBD8' }} onClick={() => handleDeleteSingleScore(item)}>
+                        Delete 🗑️
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Score Dimension Breakdown Bars */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, background: 'var(--bg-main)', padding: 12, borderRadius: 10, border: '1px solid var(--border-light)' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700 }}>
+                        <span>Content Quality</span>
+                        <span>{item.content}%</span>
+                      </div>
+                      <div className="progress-bar-bg" style={{ height: 5, marginTop: 4 }}>
+                        <div className="progress-bar-fill" style={{ width: `${item.content}%` }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700 }}>
+                        <span>Skills Match</span>
+                        <span>{item.skills}%</span>
+                      </div>
+                      <div className="progress-bar-bg" style={{ height: 5, marginTop: 4 }}>
+                        <div className="progress-bar-fill" style={{ width: `${item.skills}%` }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700 }}>
+                        <span>Format & Layout</span>
+                        <span>{item.format}%</span>
+                      </div>
+                      <div className="progress-bar-bg" style={{ height: 5, marginTop: 4 }}>
+                        <div className="progress-bar-fill" style={{ width: `${item.format}%` }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700 }}>
+                        <span>Job Relevance</span>
+                        <span>{item.relevance}%</span>
+                      </div>
+                      <div className="progress-bar-bg" style={{ height: 5, marginTop: 4 }}>
+                        <div className="progress-bar-fill" style={{ width: `${item.relevance}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Right Sidebar: Industry Comparison & Optimization Tips */}

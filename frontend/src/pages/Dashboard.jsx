@@ -15,35 +15,59 @@ export default function Dashboard() {
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
   useEffect(() => {
+    let localScores = null;
+    try {
+      const stored = localStorage.getItem('cloudats_user_scores');
+      if (stored !== null) {
+        localScores = JSON.parse(stored);
+      }
+    } catch (e) {}
+
     if (!user) return;
     Promise.all([
       api.resumes.getForUser(user.id).catch(() => []),
       api.scores.forUser(user.id).catch(() => []),
       api.recruiter.getJobs().catch(() => []),
     ]).then(([r, s, j]) => {
-      setResumes(r || []);
-      setScores(s || []);
+      const finalScoresList = localScores !== null ? localScores : (s || []);
+      setScores(finalScoresList);
+
+      const adminResumes = JSON.parse(localStorage.getItem('cloudats_admin_resumes') || '[]');
+      if (localScores !== null) {
+        setResumes(finalScoresList);
+      } else {
+        setResumes(r || []);
+      }
       setLiveJobs(j || []);
     }).finally(() => setLoading(false));
   }, [user]);
 
   const bestScore = scores.length > 0
-    ? Math.max(...scores.map(s => s.overallScore || 0))
-    : 63.5;
+    ? Math.max(...scores.map(s => s.score || s.overallScore || 0))
+    : 0;
 
   const avgScore = scores.length > 0
-    ? (scores.reduce((acc, s) => acc + (s.overallScore || 0), 0) / scores.length).toFixed(1)
-    : '63.5';
+    ? (scores.reduce((acc, s) => acc + (s.score || s.overallScore || 0), 0) / scores.length).toFixed(1)
+    : '0';
 
-  const scoreDataPoints = [
-    { day: '20 May', val: 45, x: 30, y: 85 },
-    { day: '21 May', val: 52, x: 75, y: 70 },
-    { day: '22 May', val: 58, x: 120, y: 55 },
-    { day: '23 May', val: 60, x: 165, y: 50 },
-    { day: '24 May', val: 61, x: 210, y: 48 },
-    { day: '25 May', val: 62, x: 255, y: 44 },
-    { day: '26 May', val: 63.5, x: 300, y: 35 },
-  ];
+  const latestScore = scores.length > 0 ? scores[0] : null;
+  const overviewOverall = latestScore ? Math.round(latestScore.score || latestScore.overallScore || 0) : 0;
+  const overviewContent = latestScore ? (latestScore.content !== undefined ? Math.round((latestScore.content / 40) * 100) : 0) : 0;
+  const overviewSkills = latestScore ? (latestScore.skills !== undefined ? Math.round((latestScore.skills / 30) * 100) : 0) : 0;
+  const overviewFormat = latestScore ? (latestScore.format !== undefined ? Math.round((latestScore.format / 20) * 100) : 0) : 0;
+  const overviewRelevance = latestScore ? (latestScore.relevance !== undefined ? Math.round((latestScore.relevance / 10) * 100) : 0) : 0;
+  const overviewBadge = overviewOverall >= 80 ? 'Strong' : overviewOverall >= 60 ? 'Good' : overviewOverall > 0 ? 'Fair' : 'No Data';
+
+  const scoreDataPoints = scores.length > 0
+    ? scores.map((s, idx) => ({
+        day: s.spec ? s.spec.replace(/_/g, ' ') : `Report #${idx + 1}`,
+        val: s.score || s.overallScore || 60,
+        x: 30 + (idx * 50),
+        y: Math.max(10, 110 - ((s.score || s.overallScore || 60) * 0.8))
+      }))
+    : [
+        { day: 'No Data', val: 0, x: 165, y: 110 }
+      ];
 
   if (loading) return (
     <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -100,7 +124,7 @@ export default function Dashboard() {
             <span className="metric-label">Resumes Analyzed</span>
             <div className="metric-icon-box"><IconFileText size={18} /></div>
           </div>
-          <div className="metric-value">{resumes.length || 3}</div>
+          <div className="metric-value">{resumes.length}</div>
           <div className="metric-trend trend-up">
             ↑ Live DB Storage
           </div>
@@ -194,27 +218,29 @@ export default function Dashboard() {
             <div className="ui-card">
               <div className="ui-card-header">
                 <span className="ui-card-title">Resume Analysis Overview</span>
-                <span className="badge-status badge-excellent">Good 72%</span>
+                <span className={`badge-status ${scores.length > 0 && overviewOverall >= 80 ? 'badge-excellent' : scores.length > 0 && overviewOverall >= 60 ? 'badge-good' : 'badge-fair'}`}>
+                  {scores.length > 0 ? `${overviewBadge} ${overviewOverall}%` : 'No Scores'}
+                </span>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                 <div style={{ position: 'relative', width: 95, height: 95, flexShrink: 0 }}>
                   <svg viewBox="0 0 36 36" style={{ width: 95, height: 95, transform: 'rotate(-90deg)' }}>
                     <circle cx="18" cy="18" r="15.915" fill="none" stroke="#E4EAE0" strokeWidth="3.8" />
-                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--primary-green)" strokeWidth="3.8" strokeDasharray="72, 100" />
+                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--primary-green)" strokeWidth="3.8" strokeDasharray={`${overviewOverall}, 100`} />
                   </svg>
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--primary-dark)' }}>72%</span>
+                    <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--primary-dark)' }}>{overviewOverall}%</span>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Overall</span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                   {[
-                    { name: 'Content', val: 78, status: 'Good', badgeClass: 'badge-good' },
-                    { name: 'Skills', val: 85, status: 'Excellent', badgeClass: 'badge-excellent' },
-                    { name: 'Format', val: 70, status: 'Good', badgeClass: 'badge-good' },
-                    { name: 'Relevance', val: 55, status: 'Fair', badgeClass: 'badge-fair' },
+                    { name: 'Content', val: overviewContent, status: overviewContent >= 75 ? 'Good' : overviewContent >= 50 ? 'Fair' : 'Needs Work', badgeClass: overviewContent >= 75 ? 'badge-good' : 'badge-fair' },
+                    { name: 'Skills', val: overviewSkills, status: overviewSkills >= 75 ? 'Excellent' : overviewSkills >= 40 ? 'Good' : 'Needs Work', badgeClass: overviewSkills >= 75 ? 'badge-excellent' : overviewSkills >= 40 ? 'badge-good' : 'badge-fair' },
+                    { name: 'Format', val: overviewFormat, status: overviewFormat >= 80 ? 'Good' : 'Fair', badgeClass: overviewFormat >= 80 ? 'badge-good' : 'badge-fair' },
+                    { name: 'Relevance', val: overviewRelevance, status: overviewRelevance >= 70 ? 'Good' : 'Fair', badgeClass: overviewRelevance >= 70 ? 'badge-good' : 'badge-fair' },
                   ].map((d, i) => (
                     <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
